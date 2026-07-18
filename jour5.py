@@ -207,6 +207,11 @@ async def interface():
     with open("interface.html", "r", encoding="utf-8") as f:
         return f.read()
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    with open("dashboard.html", "r", encoding="utf-8") as f:
+        return f.read()
+
 @app.get("/")
 async def root():
     return {"message": "API Maintenance Prédictive avec mémoire persistante"}

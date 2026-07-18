@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Maintenance</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        h1 { color: #e94560; font-size: 22px; }
+
+        .subtitle { color: #888; font-size: 13px; margin-top: 4px; }
+
+        .refresh-btn {
+            padding: 8px 16px;
+            background: #0f3460;
+            color: #eee;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .refresh-btn:hover { background: #e94560; border-color: #e94560; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number { font-size: 36px; font-weight: bold; }
+        .stat-label { color: #888; font-size: 13px; margin-top: 5px; }
+        .stat-card.critique .stat-number { color: #e94560; }
+        .stat-card.elevated .stat-number { color: #f39c12; }
+        .stat-card.normal .stat-number { color: #27ae60; }
+
+        .section-title {
+            font-size: 16px;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+
+        .moteurs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .moteur-card {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #333;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .moteur-card:hover { transform: translateY(-2px); }
+        .moteur-card.critique { border-left-color: #e94560; }
+        .moteur-card.elevated { border-left-color: #f39c12; }
+        .moteur-card.normal { border-left-color: #27ae60; }
+
+        .moteur-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .moteur-id { font-weight: bold; font-size: 16px; }
+
+        .badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge.critique { background: #e94560; }
+        .badge.elevated { background: #f39c12; color: #000; }
+        .badge.normal { background: #27ae60; }
+
+        .moteur-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .moteur-stat {
+            background: #0f3460;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .moteur-stat-label { color: #888; margin-bottom: 2px; }
+        .moteur-stat-value { font-weight: bold; }
+
+        .moteur-timestamp { color: #666; font-size: 11px; }
+
+        .historique-panel {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            display: none;
+            margin-top: 20px;
+        }
+
+        .historique-panel h3 { margin-bottom: 15px; color: #e94560; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            background: #0f3460;
+            color: #aaa;
+        }
+
+        td { padding: 10px; border-bottom: 1px solid #222; }
+
+        .risque-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .risque-dot.critique { background: #e94560; }
+        .risque-dot.elevated { background: #f39c12; }
+        .risque-dot.normal { background: #27ae60; }
+
+        .loading { text-align: center; color: #888; padding: 40px; }
+
+        .ajouter-moteur {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .ajouter-moteur input {
+            flex: 1;
+            padding: 10px;
+            background: #0f3460;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #eee;
+            font-size: 14px;
+        }
+
+        .ajouter-moteur button {
+            padding: 10px 20px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>🏭 Dashboard Maintenance Prédictive</h1>
+        <div class="subtitle">Vue d'ensemble des moteurs industriels</div>
+    </div>
+    <button class="refresh-btn" onclick="chargerDashboard()">🔄 Actualiser</button>
+</header>
+
+<div class="stats">
+    <div class="stat-card critique">
+        <div class="stat-number" id="count-critique">-</div>
+        <div class="stat-label">🔴 Critique</div>
+    </div>
+    <div class="stat-card elevated">
+        <div class="stat-number" id="count-elevated">-</div>
+        <div class="stat-label">🟠 Élevé</div>
+    </div>
+    <div class="stat-card normal">
+        <div class="stat-number" id="count-normal">-</div>
+        <div class="stat-label">🟢 Normal</div>
+    </div>
+</div>
+
+<div class="ajouter-moteur">
+    <input type="text" id="nouveau-moteur" placeholder="Ajouter un moteur à surveiller (ex: moteur-C3)">
+    <button onclick="ajouterMoteur()">+ Ajouter</button>
+</div>
+
+<div class="section-title">Moteurs surveillés</div>
+<div class="moteurs-grid" id="moteurs-grid">
+    <div class="loading">Chargement...</div>
+</div>
+
+<div class="historique-panel" id="historique-panel">
+    <h3 id="historique-titre">Historique</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Date/Heure</th>
+                <th>Température</th>
+                <th>Vibration</th>
+                <th>Risque</th>
+            </tr>
+        </thead>
+        <tbody id="historique-tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    const API = 'https://web-production-eebd7.up.railway.app';
+    let moteurs = JSON.parse(localStorage.getItem('moteurs') || '["moteur-A1", "moteur-B1"]');
+
+    function sauvegarderMoteurs() {
+        localStorage.setItem('moteurs', JSON.stringify(moteurs));
+    }
+
+    function ajouterMoteur() {
+        const input = document.getElementById('nouveau-moteur');
+        const id = input.value.trim();
+        if (id && !moteurs.includes(id)) {
+            moteurs.push(id);
+            sauvegarderMoteurs();
+            input.value = '';
+            chargerDashboard();
+        }
+    }
+
+    async function chargerHistorique(moteurId) {
+        const panel = document.getElementById('historique-panel');
+        const titre = document.getElementById('historique-titre');
+        const tbody = document.getElementById('historique-tbody');
+
+        titre.textContent = `Historique — ${moteurId}`;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888">Chargement...</td></tr>';
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth' });
+
+        try {
+            const res = await fetch(`${API}/historique/${moteurId}`);
+            const data = await res.json();
+
+            if (data.mesures.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888">Aucune mesure</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.mesures.map(m => `
+                <tr>
+                    <td>${new Date(m.timestamp).toLocaleString('fr-BE')}</td>
+                    <td>${m.temperature}°C</td>
+                    <td>${m.vibration}</td>
+                    <td>
+                        <span class="risque-dot ${m.niveau_risque}"></span>
+                        ${m.niveau_risque}
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:#e94560">Erreur de chargement</td></tr>';
+        }
+    }
+
+    async function chargerDashboard() {
+        const grid = document.getElementById('moteurs-grid');
+        grid.innerHTML = '<div class="loading">Chargement...</div>';
+
+        let critique = 0, elevated = 0, normal = 0;
+        const cards = [];
+
+        await Promise.all(moteurs.map(async (moteurId) => {
+            try {
+                const res = await fetch(`${API}/historique/${moteurId}`);
+                const data = await res.json();
+
+                const derniere = data.mesures[0];
+                const risque = derniere?.niveau_risque || 'normal';
+
+                if (risque === 'critique') critique++;
+                else if (risque === 'elevated') elevated++;
+                else normal++;
+
+                cards.push({ id: moteurId, data, derniere, risque });
+            } catch (e) {
+                cards.push({ id: moteurId, data: null, derniere: null, risque: 'normal' });
+            }
+        }));
+
+        document.getElementById('count-critique').textContent = critique;
+        document.getElementById('count-elevated').textContent = elevated;
+        document.getElementById('count-normal').textContent = normal;
+
+        grid.innerHTML = cards.map(c => `
+            <div class="moteur-card ${c.risque}" onclick="chargerHistorique('${c.id}')">
+                <div class="moteur-header">
+                    <div class="moteur-id">⚙️ ${c.id}</div>
+                    <span class="badge ${c.risque}">${c.risque.toUpperCase()}</span>
+                </div>
+                ${c.derniere ? `
+                <div class="moteur-stats">
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Température</div>
+                        <div class="moteur-stat-value">${c.derniere.temperature}°C</div>
+                    </div>
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Vibration</div>
+                        <div class="moteur-stat-value">${c.derniere.vibration}</div>
+                    </div>
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Mesures</div>
+                        <div class="moteur-stat-value">${c.data.nombre_mesures}</div>
+                    </div>
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Dernière mesure</div>
+                        <div class="moteur-stat-value" style="font-size:10px">${new Date(c.derniere.timestamp).toLocaleString('fr-BE')}</div>
+                    </div>
+                </div>
+                ` : '<div style="color:#888;font-size:13px">Aucune mesure enregistrée</div>'}
+            </div>
+        `).join('');
+    }
+
+    chargerDashboard();
+</script>
+</body>
+</html>
