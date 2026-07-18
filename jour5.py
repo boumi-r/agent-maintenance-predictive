@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 import json
 from datetime import datetime
+from fastapi.responses import HTMLResponse
 
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -201,6 +202,10 @@ async def voir_historique(moteur_id: str):
             for h in historique
         ]
     }
+@app.get("/interface", response_class=HTMLResponse)
+async def interface():
+    with open("interface.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.get("/")
 async def root():

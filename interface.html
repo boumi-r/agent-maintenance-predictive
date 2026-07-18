@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Moteur</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #e94560;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: #0f3460;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #eee;
+            font-size: 16px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover { background: #c73652; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        .resultat {
+            margin-top: 25px;
+            padding: 20px;
+            background: #0f3460;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .badge.critique { background: #e94560; }
+        .badge.elevated { background: #f39c12; }
+        .badge.normal { background: #27ae60; }
+
+        .diagnostic-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #ccc;
+            white-space: pre-wrap;
+        }
+
+        .loading {
+            text-align: center;
+            color: #888;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Diagnostic Moteur</h1>
+        <p class="subtitle">Entrez les mesures du moteur pour obtenir un diagnostic instantané</p>
+
+        <div class="form-group">
+            <label>ID du Moteur</label>
+            <input type="text" id="moteur_id" placeholder="ex: moteur-A1" value="moteur-A1">
+        </div>
+
+        <div class="form-group">
+            <label>Température des roulements (°C)</label>
+            <input type="number" id="temperature" placeholder="ex: 85" value="85">
+        </div>
+
+        <div class="form-group">
+            <label>État des vibrations</label>
+            <select id="vibration">
+                <option value="normale">Normale</option>
+                <option value="anormale">Anormale</option>
+                <option value="critique">Critique</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Écart d'intensité par rapport au nominal (%)</label>
+            <input type="number" id="intensite_ecart" placeholder="ex: 10" value="10">
+        </div>
+
+        <div class="form-group">
+            <label>Email du service de maintenance</label>
+            <input type="email" id="email" placeholder="maintenance@usine.be" value="maintenance@usine.be">
+        </div>
+
+        <button id="btn" onclick="analyser()">🔍 Analyser le moteur</button>
+
+        <div class="loading" id="loading">
+            ⏳ Analyse en cours... (peut prendre 10-20 secondes)
+        </div>
+
+        <div class="resultat" id="resultat">
+            <span class="badge" id="badge">-</span>
+            <div class="diagnostic-text" id="diagnostic"></div>
+        </div>
+    </div>
+
+    <script>
+        async function analyser() {
+            const btn = document.getElementById('btn');
+            const loading = document.getElementById('loading');
+            const resultat = document.getElementById('resultat');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            resultat.style.display = 'none';
+
+            const data = {
+                moteur_id: document.getElementById('moteur_id').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                vibration: document.getElementById('vibration').value,
+                intensite_ecart: parseFloat(document.getElementById('intensite_ecart').value),
+                email_maintenance: document.getElementById('email').value
+            };
+
+            try {
+                const response = await fetch('https://web-production-eebd7.up.railway.app/analyser-moteur', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                const badge = document.getElementById('badge');
+                badge.textContent = result.niveau_risque?.toUpperCase() || 'INCONNU';
+                badge.className = 'badge ' + (result.niveau_risque || 'normal');
+
+                document.getElementById('diagnostic').textContent = 
+                    result.diagnostic || result.erreur || 'Aucune réponse';
+
+                resultat.style.display = 'block';
+
+            } catch (err) {
+                document.getElementById('diagnostic').textContent = 'Erreur de connexion à l\'API';
+                resultat.style.display = 'block';
+            }
+
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
