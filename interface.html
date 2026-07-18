@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diagnostic Moteur</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -196,10 +197,8 @@
                 badge.textContent = result.niveau_risque?.toUpperCase() || 'INCONNU';
                 badge.className = 'badge ' + (result.niveau_risque || 'normal');
 
-                document.getElementById('diagnostic').textContent = 
-                    result.diagnostic || result.erreur || 'Aucune réponse';
-
-                resultat.style.display = 'block';
+                document.getElementById('diagnostic').innerHTML = 
+                       marked.parse(result.diagnostic || result.erreur || 'Aucune réponse');                resultat.style.display = 'block';
 
             } catch (err) {
                 document.getElementById('diagnostic').textContent = 'Erreur de connexion à l\'API';
