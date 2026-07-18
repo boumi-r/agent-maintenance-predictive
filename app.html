@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Prédictive</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        nav {
+            background: #16213e;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e94560;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-brand {
+            color: #e94560;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 5px;
+        }
+
+        .nav-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            background: transparent;
+            color: #888;
+            transition: all 0.2s;
+        }
+
+        .nav-btn.active {
+            background: #e94560;
+            color: white;
+        }
+
+        .nav-btn:hover:not(.active) {
+            background: #0f3460;
+            color: #eee;
+        }
+
+        /* Pages */
+        .page { display: none; padding: 25px; }
+        .page.active { display: block; }
+
+        /* --- DASHBOARD --- */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number { font-size: 36px; font-weight: bold; }
+        .stat-label { color: #888; font-size: 13px; margin-top: 5px; }
+        .stat-card.critique .stat-number { color: #e94560; }
+        .stat-card.elevated .stat-number { color: #f39c12; }
+        .stat-card.normal .stat-number { color: #27ae60; }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .section-title { color: #aaa; font-size: 15px; }
+
+        .refresh-btn {
+            padding: 7px 14px;
+            background: #0f3460;
+            color: #eee;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .refresh-btn:hover { background: #e94560; border-color: #e94560; }
+
+        .ajouter-moteur {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .ajouter-moteur input {
+            flex: 1;
+            padding: 10px;
+            background: #0f3460;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #eee;
+            font-size: 14px;
+        }
+
+        .ajouter-moteur button {
+            padding: 10px 20px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .moteurs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .moteur-card {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #333;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .moteur-card:hover { transform: translateY(-2px); }
+        .moteur-card.critique { border-left-color: #e94560; }
+        .moteur-card.elevated { border-left-color: #f39c12; }
+        .moteur-card.normal { border-left-color: #27ae60; }
+
+        .moteur-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .moteur-id { font-weight: bold; font-size: 16px; }
+
+        .badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge.critique { background: #e94560; }
+        .badge.elevated { background: #f39c12; color: #000; }
+        .badge.normal { background: #27ae60; }
+
+        .moteur-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .moteur-stat {
+            background: #0f3460;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .moteur-stat-label { color: #888; margin-bottom: 2px; }
+
+        .analyser-btn {
+            width: 100%;
+            padding: 8px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .historique-panel {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .historique-panel h3 { margin-bottom: 15px; color: #e94560; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 10px; background: #0f3460; color: #aaa; }
+        td { padding: 10px; border-bottom: 1px solid #222; }
+
+        .risque-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .risque-dot.critique { background: #e94560; }
+        .risque-dot.elevated { background: #f39c12; }
+        .risque-dot.normal { background: #27ae60; }
+
+        /* --- DIAGNOSTIC --- */
+        .diag-container {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        .diag-title {
+            text-align: center;
+            color: #e94560;
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+
+        .diag-subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+
+        .form-group { margin-bottom: 18px; }
+
+        label { display: block; margin-bottom: 6px; color: #aaa; font-size: 14px; }
+
+        input[type="text"], input[type="number"], input[type="email"], select {
+            width: 100%;
+            padding: 12px;
+            background: #0f3460;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #eee;
+            font-size: 15px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .analyser-main-btn {
+            width: 100%;
+            padding: 14px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .analyser-main-btn:disabled { background: #555; cursor: not-allowed; }
+
+        .loading { text-align: center; color: #888; padding: 20px; display: none; }
+
+        .resultat {
+            margin-top: 25px;
+            padding: 20px;
+            background: #0f3460;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .resultat-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .section-label {
+             color: #e94560;
+             font-size: 13px;
+             font-weight: bold;
+             margin-bottom: 10px;
+             margin-top: 5px;
+             text-transform: uppercase;
+             letter-spacing: 1px;
+        }
+
+        .resultat-badge.critique { background: #e94560; }
+        .resultat-badge.elevated { background: #f39c12; color: #000; }
+        .resultat-badge.normal { background: #27ae60; }
+
+        .diagnostic-text { font-size: 14px; line-height: 1.6; color: #ccc; }
+        .diagnostic-text h2, .diagnostic-text h3 { color: #e94560; margin: 15px 0 8px; }
+        .diagnostic-text table { margin: 10px 0; }
+        .diagnostic-text td, .diagnostic-text th { padding: 8px; border: 1px solid #333; }
+        .diagnostic-text ul, .diagnostic-text ol { padding-left: 20px; margin: 8px 0; }
+
+        .loading-dash { text-align: center; color: #888; padding: 40px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-brand">⚙️ MaintenanceAI</div>
+    <div class="nav-links">
+        <button class="nav-btn active" onclick="showPage('dashboard')">📊 Dashboard</button>
+        <button class="nav-btn" onclick="showPage('diagnostic')">🔍 Diagnostic</button>
+    </div>
+</nav>
+
+<!-- PAGE DASHBOARD -->
+<div class="page active" id="page-dashboard">
+
+    <div class="stats">
+        <div class="stat-card critique">
+            <div class="stat-number" id="count-critique">-</div>
+            <div class="stat-label">🔴 Critique</div>
+        </div>
+        <div class="stat-card elevated">
+            <div class="stat-number" id="count-elevated">-</div>
+            <div class="stat-label">🟠 Élevé</div>
+        </div>
+        <div class="stat-card normal">
+            <div class="stat-number" id="count-normal">-</div>
+            <div class="stat-label">🟢 Normal</div>
+        </div>
+    </div>
+
+    <div class="ajouter-moteur">
+        <input type="text" id="nouveau-moteur" placeholder="Ajouter un moteur (ex: moteur-C3)">
+        <button onclick="ajouterMoteur()">+ Ajouter</button>
+    </div>
+
+    <div class="section-header">
+        <div class="section-title">Moteurs surveillés</div>
+        <button class="refresh-btn" onclick="chargerDashboard()">🔄 Actualiser</button>
+    </div>
+
+    <div class="moteurs-grid" id="moteurs-grid">
+        <div class="loading-dash">Chargement...</div>
+    </div>
+
+    <div class="historique-panel" id="historique-panel" style="display:none">
+        <h3 id="historique-titre">Historique</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date/Heure</th>
+                    <th>Température</th>
+                    <th>Vibration</th>
+                    <th>Risque</th>
+                </tr>
+            </thead>
+            <tbody id="historique-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- PAGE DIAGNOSTIC -->
+<div class="page" id="page-diagnostic">
+    <div class="diag-container">
+        <h1 class="diag-title">🔧 Diagnostic Moteur</h1>
+        <p class="diag-subtitle">Entrez les mesures pour obtenir un diagnostic instantané</p>
+
+        <div class="form-group">
+            <label>ID du Moteur</label>
+            <input type="text" id="moteur_id" placeholder="ex: moteur-A1" value="moteur-A1">
+        </div>
+
+        <div class="section-label">⚡ Paramètres électriques</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+            <div>
+                <label>Tension Ph1 (V)</label>
+                <input type="number" id="tension_ph1" value="380">
+            </div>
+            <div>
+                <label>Tension Ph2 (V)</label>
+                <input type="number" id="tension_ph2" value="381">
+            </div>
+            <div>
+                <label>Tension Ph3 (V)</label>
+                <input type="number" id="tension_ph3" value="379">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+            <div>
+                <label>Courant Ph1 (A)</label>
+                <input type="number" id="courant_ph1" value="15">
+            </div>
+            <div>
+                <label>Courant Ph2 (A)</label>
+                <input type="number" id="courant_ph2" value="15">
+            </div>
+            <div>
+                <label>Courant Ph3 (A)</label>
+                <input type="number" id="courant_ph3" value="15">
+            </div>
+        </div>
+
+        <div class="section-label">🔩 Paramètres mécaniques</div>
+
+        <div class="form-group">
+            <label>État des vibrations</label>
+            <select id="vibration">
+                <option value="normale">Normale</option>
+                <option value="anormale">Anormale</option>
+                <option value="critique">Critique</option>
+            </select>
+        </div>
+
+        <div class="section-label">🌡️ Paramètres thermiques</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+            <div>
+                <label>Température roulements (°C)</label>
+                <input type="number" id="temperature_roulements" value="75">
+            </div>
+            <div>
+                <label>Température bobinages (°C)</label>
+                <input type="number" id="temperature_bobinages" value="80">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Email du service de maintenance</label>
+            <input type="email" id="email" placeholder="maintenance@usine.be" value="maintenance@usine.be">
+        </div>
+
+        <button class="analyser-main-btn" id="btn" onclick="analyser()">🔍 Analyser le moteur</button>
+
+        <div class="loading" id="loading">⏳ Analyse en cours... (10-20 secondes)</div>
+
+        <div class="resultat" id="resultat">
+            <span class="resultat-badge" id="badge">-</span>
+            <div class="diagnostic-text" id="diagnostic"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = 'https://web-production-eebd7.up.railway.app';
+    let moteurs = JSON.parse(localStorage.getItem('moteurs') || '["moteur-A1", "moteur-B1"]');
+
+    function showPage(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        event.target.classList.add('active');
+        if (page === 'dashboard') chargerDashboard();
+    }
+
+    function sauvegarderMoteurs() {
+        localStorage.setItem('moteurs', JSON.stringify(moteurs));
+    }
+
+    function ajouterMoteur() {
+        const input = document.getElementById('nouveau-moteur');
+        const id = input.value.trim();
+        if (id && !moteurs.includes(id)) {
+            moteurs.push(id);
+            sauvegarderMoteurs();
+            input.value = '';
+            chargerDashboard();
+        }
+    }
+
+    function analyserDepuisDashboard(moteurId) {
+        document.getElementById('moteur_id').value = moteurId;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-diagnostic').classList.add('active');
+        document.querySelectorAll('.nav-btn')[1].classList.add('active');
+    }
+
+    async function chargerHistorique(moteurId) {
+        const panel = document.getElementById('historique-panel');
+        const titre = document.getElementById('historique-titre');
+        const tbody = document.getElementById('historique-tbody');
+
+        titre.textContent = `Historique — ${moteurId}`;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888">Chargement...</td></tr>';
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth' });
+
+        try {
+            const res = await fetch(`${API}/historique/${moteurId}`);
+            const data = await res.json();
+
+            if (data.mesures.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888">Aucune mesure</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.mesures.map(m => `
+                <tr>
+                    <td>${new Date(m.timestamp).toLocaleString('fr-BE')}</td>
+                    <td>${m.temperature}°C</td>
+                    <td>${m.vibration}</td>
+                    <td><span class="risque-dot ${m.niveau_risque}"></span>${m.niveau_risque}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:#e94560">Erreur</td></tr>';
+        }
+    }
+
+    async function chargerDashboard() {
+        const grid = document.getElementById('moteurs-grid');
+        grid.innerHTML = '<div class="loading-dash">Chargement...</div>';
+        document.getElementById('historique-panel').style.display = 'none';
+
+        let critique = 0, elevated = 0, normal = 0;
+        const cards = [];
+
+        await Promise.all(moteurs.map(async (moteurId) => {
+            try {
+                const res = await fetch(`${API}/historique/${moteurId}`);
+                const data = await res.json();
+                const derniere = data.mesures[0];
+                const risque = derniere?.niveau_risque || 'normal';
+                if (risque === 'critique') critique++;
+                else if (risque === 'elevated') elevated++;
+                else normal++;
+                cards.push({ id: moteurId, data, derniere, risque });
+            } catch (e) {
+                normal++;
+                cards.push({ id: moteurId, data: null, derniere: null, risque: 'normal' });
+            }
+        }));
+
+        document.getElementById('count-critique').textContent = critique;
+        document.getElementById('count-elevated').textContent = elevated;
+        document.getElementById('count-normal').textContent = normal;
+
+        grid.innerHTML = cards.map(c => `
+            <div class="moteur-card ${c.risque}">
+                <div class="moteur-header">
+                    <div class="moteur-id">⚙️ ${c.id}</div>
+                    <span class="badge ${c.risque}">${c.risque.toUpperCase()}</span>
+                </div>
+                ${c.derniere ? `
+                <div class="moteur-stats">
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Température</div>
+                        <div class="moteur-stat-value">${c.derniere.temperature}°C</div>
+                    </div>
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Vibration</div>
+                        <div class="moteur-stat-value">${c.derniere.vibration}</div>
+                    </div>
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Mesures</div>
+                        <div class="moteur-stat-value">${c.data.nombre_mesures}</div>
+                    </div>
+                    <div class="moteur-stat">
+                        <div class="moteur-stat-label">Dernière</div>
+                        <div class="moteur-stat-value" style="font-size:10px">${new Date(c.derniere.timestamp).toLocaleString('fr-BE')}</div>
+                    </div>
+                </div>
+                ` : '<div style="color:#888;font-size:13px;margin-bottom:10px">Aucune mesure enregistrée</div>'}
+                <div style="display:flex;gap:8px">
+                    <button class="analyser-btn" onclick="chargerHistorique('${c.id}')">📋 Historique</button>
+                    <button class="analyser-btn" style="background:#0f3460" onclick="analyserDepuisDashboard('${c.id}')">🔍 Analyser</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+  async function analyser() {
+    const btn = document.getElementById('btn');
+    const loading = document.getElementById('loading');
+    const resultat = document.getElementById('resultat');
+
+    btn.disabled = true;
+    loading.style.display = 'block';
+    resultat.style.display = 'none';
+
+    const data = {
+        moteur_id: document.getElementById('moteur_id').value,
+        tension_ph1: parseFloat(document.getElementById('tension_ph1').value),
+        tension_ph2: parseFloat(document.getElementById('tension_ph2').value),
+        tension_ph3: parseFloat(document.getElementById('tension_ph3').value),
+        courant_ph1: parseFloat(document.getElementById('courant_ph1').value),
+        courant_ph2: parseFloat(document.getElementById('courant_ph2').value),
+        courant_ph3: parseFloat(document.getElementById('courant_ph3').value),
+        vibration: document.getElementById('vibration').value,
+        temperature_roulements: parseFloat(document.getElementById('temperature_roulements').value),
+        temperature_bobinages: parseFloat(document.getElementById('temperature_bobinages').value),
+        email_maintenance: document.getElementById('email').value
+    };
+
+    try {
+        const response = await fetch(`${API}/analyser-moteur`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        const badge = document.getElementById('badge');
+        badge.textContent = result.niveau_risque?.toUpperCase() || 'INCONNU';
+        badge.className = 'resultat-badge ' + (result.niveau_risque || 'normal');
+        document.getElementById('diagnostic').innerHTML =
+            marked.parse(result.diagnostic || result.erreur || 'Aucune réponse');
+
+        resultat.style.display = 'block';
+
+    } catch (err) {
+        document.getElementById('diagnostic').innerHTML = 'Erreur de connexion à l\'API';
+        resultat.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    loading.style.display = 'none';
+}
+    chargerDashboard();
+</script>
+</body>
+</html>

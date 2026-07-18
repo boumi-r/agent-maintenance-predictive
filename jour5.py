@@ -32,9 +32,19 @@ app = FastAPI()
 
 class DonneesMoteur(BaseModel):
     moteur_id: str
-    temperature: float
+    # Électrique
+    tension_ph1: float
+    tension_ph2: float
+    tension_ph3: float
+    courant_ph1: float
+    courant_ph2: float
+    courant_ph3: float
+    # Mécanique
     vibration: str
-    intensite_ecart: float
+    # Thermique
+    temperature_roulements: float
+    temperature_bobinages: float
+    # Contact
     email_maintenance: str
 
 tools = [
@@ -109,11 +119,23 @@ async def analyser_moteur(donnees: DonneesMoteur):
 
     message = f"""
     Moteur ID: {donnees.moteur_id}
-    Mesures actuelles:
-    - Température roulements: {donnees.temperature}°C
+
+    Paramètres électriques:
+    - Tension phase 1: {donnees.tension_ph1} V
+    - Tension phase 2: {donnees.tension_ph2} V
+    - Tension phase 3: {donnees.tension_ph3} V
+    - Courant phase 1: {donnees.courant_ph1} A
+    - Courant phase 2: {donnees.courant_ph2} A
+    - Courant phase 3: {donnees.courant_ph3} A
+
+    Paramètres mécaniques:
     - Vibrations: {donnees.vibration}
-    - Écart intensité: {donnees.intensite_ecart}%
-    - Email maintenance: {donnees.email_maintenance}
+
+    Paramètres thermiques:
+    - Température roulements: {donnees.temperature_roulements}°C
+    - Température bobinages: {donnees.temperature_bobinages}°C
+
+    Email maintenance: {donnees.email_maintenance}
     {contexte_historique}
     """
 
@@ -165,9 +187,15 @@ async def analyser_moteur(donnees: DonneesMoteur):
     with Session(engine) as session:
         nouvelle_mesure = HistoriqueMoteur(
             moteur_id=donnees.moteur_id,
-            temperature=donnees.temperature,
+            temperature=donnees.temperature_roulements,
             vibration=donnees.vibration,
-            intensite_ecart=donnees.intensite_ecart,
+            intensite_ecart=round(
+                max(
+                    abs(donnees.tension_ph1 - donnees.tension_ph2),
+                    abs(donnees.tension_ph2 - donnees.tension_ph3),
+                    abs(donnees.tension_ph1 - donnees.tension_ph3)
+                ) / max(donnees.tension_ph1, donnees.tension_ph2, donnees.tension_ph3) * 100, 2
+            ),
             diagnostic=diagnostic_final,
             niveau_risque=niveau_risque_detecte["valeur"]
         )
@@ -210,6 +238,11 @@ async def interface():
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
     with open("dashboard.html", "r", encoding="utf-8") as f:
+        return f.read()
+    
+@app.get("/app", response_class=HTMLResponse)
+async def application():
+    with open("app.html", "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/")
