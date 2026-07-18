@@ -8,6 +8,8 @@ import os
 import json
 from datetime import datetime
 from fastapi.responses import HTMLResponse
+import sendgrid
+from sendgrid.helpers.mail import Mail
 
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -90,11 +92,43 @@ def predire_panne(symptome, cause, niveau_risque):
     }
 
 def alert_immediate(probleme, email_service_maintenance):
-    return {
-        "status": "alerte_envoyee",
-        "destinataire": email_service_maintenance,
-        "probleme": probleme
-    }
+    try:
+        sg = sendgrid.SendGridAPIClient(api_key=os.getenv("SENDGRID_API_KEY"))
+        
+        message = Mail(
+            from_email=os.getenv("SENDGRID_FROM_EMAIL"),
+            to_emails=email_service_maintenance,
+            subject="🚨 ALERTE MAINTENANCE — Intervention requise",
+            html_content=f"""
+            <div style="font-family: Arial; padding: 20px; background: #f5f5f5;">
+                <div style="background: #e94560; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h2>🚨 ALERTE MAINTENANCE PRÉDICTIVE</h2>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <h3>Problème détecté :</h3>
+                    <p>{probleme}</p>
+                    <hr>
+                    <p><strong>Action requise :</strong> Intervention immédiate</p>
+                    <p style="color: #888; font-size: 12px;">Généré par MaintenanceAI</p>
+                </div>
+            </div>
+            """
+        )
+        
+        sg.send(message)
+        
+        return {
+            "status": "alerte_envoyee",
+            "destinataire": email_service_maintenance,
+            "probleme": probleme
+        }
+        
+    except Exception as e:
+        return {
+            "status": "erreur_envoi",
+            "erreur": str(e),
+            "destinataire": email_service_maintenance
+        }
 
 outils_disponibles = {
     "predire_panne": predire_panne,
