@@ -20,7 +20,7 @@ dependencies = [
     "httpx==0.28.1",
     "PyJWT==2.15.1",
     "pwdlib[argon2]==0.3.1",
-    "slowapi==0.1.10",
+    "limits==5.8.0",
 ]
 
 [project.optional-dependencies]

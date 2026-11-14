@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Prédictive</title>
+    <!-- Versions épinglées. Le diagnostic Markdown est assaini par DOMPurify avant insertion. -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+
+        nav {
+            background: #16213e; padding: 15px 25px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 2px solid #e94560; position: sticky; top: 0; z-index: 100;
+            gap: 10px; flex-wrap: wrap;
+        }
+        .nav-brand { color: #e94560; font-size: 18px; font-weight: bold; }
+        .nav-links { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+        .nav-btn {
+            padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;
+            background: transparent; color: #888; transition: all 0.2s;
+        }
+        .nav-btn.active { background: #e94560; color: white; }
+        .nav-btn:hover:not(.active) { background: #0f3460; color: #eee; }
+        .nav-user { color: #888; font-size: 12px; margin-left: 10px; }
+
+        .page { display: none; padding: 25px; }
+        .page.active { display: block; }
+
+        /* Niveaux de risque */
+        .critique { --c: #e94560; } .eleve { --c: #f39c12; } .surveillance { --c: #f1c40f; }
+        .normal { --c: #27ae60; } .indetermine { --c: #7f8c8d; }
+
+        .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 25px; }
+        .stat-card { background: #16213e; border-radius: 10px; padding: 18px; text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; color: var(--c); }
+        .stat-label { color: #888; font-size: 13px; margin-top: 5px; }
+
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .section-title { color: #aaa; font-size: 15px; }
+        .btn-sec {
+            padding: 7px 14px; background: #0f3460; color: #eee; border: 1px solid #333;
+            border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-sec:hover { background: #e94560; border-color: #e94560; }
+
+        .moteurs-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 25px;
+        }
+        .moteur-card { background: #16213e; border-radius: 10px; padding: 20px; border-left: 4px solid var(--c, #333); }
+        .moteur-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .moteur-id { font-weight: bold; font-size: 16px; }
+        .badge {
+            padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;
+            background: var(--c, #555); color: #000;
+        }
+        .moteur-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .moteur-stat { background: #0f3460; padding: 8px; border-radius: 6px; font-size: 12px; }
+        .moteur-stat-label { color: #888; margin-bottom: 2px; }
+        .card-actions { display: flex; gap: 8px; }
+        .analyser-btn {
+            width: 100%; padding: 8px; background: #e94560; color: white; border: none;
+            border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 8px;
+        }
+
+        .panel { background: #16213e; border-radius: 10px; padding: 20px; margin-top: 20px; overflow-x: auto; }
+        .panel h3 { margin-bottom: 15px; color: #e94560; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 10px; background: #0f3460; color: #aaa; }
+        td { padding: 10px; border-bottom: 1px solid #222; vertical-align: top; }
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--c); }
+
+        .diag-container, .login-container { max-width: 650px; margin: 0 auto; }
+        .login-container { max-width: 380px; margin-top: 60px; }
+        .diag-title { text-align: center; color: #e94560; font-size: 22px; margin-bottom: 5px; }
+        .diag-subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 18px; }
+        .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; color: #aaa; font-size: 14px; }
+        input, select, textarea {
+            width: 100%; padding: 12px; background: #0f3460; border: 1px solid #333;
+            border-radius: 8px; color: #eee; font-size: 15px; font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #e94560; }
+        .section-label {
+            color: #e94560; font-size: 13px; font-weight: bold; margin: 5px 0 10px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-main {
+            width: 100%; padding: 14px; background: #e94560; color: white; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 5px;
+        }
+        .btn-main:disabled { background: #555; cursor: not-allowed; }
+        .loading { text-align: center; color: #888; padding: 20px; display: none; }
+        .erreur { color: #e94560; margin-top: 12px; font-size: 14px; }
+        .resultat { margin-top: 25px; padding: 20px; background: #0f3460; border-radius: 8px; display: none; }
+        .resultat-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold;
+            margin-bottom: 15px; background: var(--c, #555); color: #000;
+        }
+        .info { color: #888; font-size: 12px; margin-top: 10px; }
+        .diagnostic-text { font-size: 14px; line-height: 1.6; color: #ccc; margin-top: 15px; }
+        .diagnostic-text h2, .diagnostic-text h3 { color: #e94560; margin: 15px 0 8px; }
+        .diagnostic-text ul, .diagnostic-text ol { padding-left: 20px; margin: 8px 0; }
+        .nature { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #333; color: #ccc; }
+        .alerte-box { margin-top: 15px; padding: 12px; border-radius: 6px; background: #16213e; border-left: 4px solid var(--c); font-size: 13px; }
+        .muted { color: #888; font-size: 13px; }
+
+        @media (max-width: 700px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .grid3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-brand">⚙️ MaintenanceAI</div>
+    <div class="nav-links" id="nav-links" style="display:none">
+        <button class="nav-btn active" data-page="dashboard">📊 Dashboard</button>
+        <button class="nav-btn" data-page="diagnostic">🔍 Diagnostic</button>
+        <button class="nav-btn" data-page="alertes">🚨 Alertes</button>
+        <span class="nav-user" id="nav-user"></span>
+        <button class="nav-btn" id="logout">Déconnexion</button>
+    </div>
+</nav>
+
+<!-- CONNEXION -->
+<div class="page active" id="page-login">
+    <div class="login-container">
+        <h1 class="diag-title">Connexion</h1>
+        <p class="diag-subtitle">Compte fourni par l'administrateur de votre organisation</p>
+        <form id="login-form">
+            <div class="form-group"><label for="login-email">Email</label><input type="email" id="login-email" required autocomplete="username"></div>
+            <div class="form-group"><label for="login-mdp">Mot de passe</label><input type="password" id="login-mdp" required autocomplete="current-password"></div>
+            <button class="btn-main" type="submit">Se connecter</button>
+            <div class="erreur" id="login-erreur"></div>
+        </form>
+    </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="page-dashboard">
+    <div class="stats" id="stats"></div>
+    <div class="section-header">
+        <div class="section-title">Moteurs surveillés</div>
+        <button class="btn-sec" id="refresh">🔄 Actualiser</button>
+    </div>
+    <div class="moteurs-grid" id="moteurs-grid"><div class="muted">Chargement...</div></div>
+    <div class="panel" id="historique-panel" style="display:none">
+        <h3 id="historique-titre">Historique</h3>
+        <table>
+            <thead><tr>
+                <th>Date/Heure</th><th>Vibration (mm/s)</th><th>T° roulements</th><th>T° bobinage</th>
+                <th>Déséq. U</th><th>Déséq. I</th><th>Risque</th>
+            </tr></thead>
+            <tbody id="historique-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DIAGNOSTIC -->
+<div class="page" id="page-diagnostic">
+    <div class="diag-container">
+        <h1 class="diag-title">🔧 Diagnostic Moteur</h1>
+        <p class="diag-subtitle">Le niveau de risque est calculé par des règles normatives ; l'agent l'explique.</p>
+        <form id="diag-form">
+            <div class="form-group"><label for="moteur">Moteur</label><select id="moteur" required></select></div>
+
+            <div class="section-label">⚡ Tensions composées (V) et courants (A)</div>
+            <div class="grid3">
+                <div><label>U L1-L2</label><input type="number" step="any" min="0" id="tension_ph1_v" value="400" required></div>
+                <div><label>U L2-L3</label><input type="number" step="any" min="0" id="tension_ph2_v" value="401" required></div>
+                <div><label>U L3-L1</label><input type="number" step="any" min="0" id="tension_ph3_v" value="399" required></div>
+            </div>
+            <div class="grid3">
+                <div><label>I phase 1</label><input type="number" step="any" min="0" id="courant_ph1_a" value="15" required></div>
+                <div><label>I phase 2</label><input type="number" step="any" min="0" id="courant_ph2_a" value="15" required></div>
+                <div><label>I phase 3</label><input type="number" step="any" min="0" id="courant_ph3_a" value="15" required></div>
+            </div>
+
+            <div class="section-label">🔩 Mécanique</div>
+            <div class="form-group">
+                <label for="vibration_rms_mm_s">Vibration — vitesse efficace (mm/s RMS)</label>
+                <input type="number" step="any" min="0" id="vibration_rms_mm_s" value="1.2" required>
+            </div>
+
+            <div class="section-label">🌡️ Thermique (°C)</div>
+            <div class="grid2">
+                <div><label>Roulements</label><input type="number" step="any" id="temperature_roulements_c" value="60" required></div>
+                <div><label>Bobinage</label><input type="number" step="any" id="temperature_bobinage_c" value="85" required></div>
+            </div>
+
+            <div class="form-group">
+                <label for="observations">Observations (facultatif)</label>
+                <textarea id="observations" rows="2" maxlength="2000" placeholder="Bruit, odeur, état visuel..."></textarea>
+            </div>
+
+            <button class="btn-main" id="btn" type="submit">🔍 Analyser le moteur</button>
+        </form>
+        <div class="loading" id="loading">⏳ Analyse en cours... (10-30 secondes)</div>
+        <div class="resultat" id="resultat">
+            <span class="resultat-badge" id="badge">-</span>
+            <div class="panel" style="margin-top:0;padding:0;background:none">
+                <table>
+                    <thead><tr><th>Règle</th><th>Valeur</th><th>Niveau</th><th>Seuil / source</th></tr></thead>
+                    <tbody id="regles-tbody"></tbody>
+                </table>
+            </div>
+            <div id="alerte-box"></div>
+            <div class="diagnostic-text" id="diagnostic"></div>
+            <div class="info" id="info"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ALERTES -->
+<div class="page" id="page-alertes">
+    <div class="section-header">
+        <div class="section-title">Alertes</div>
+        <select id="filtre-statut" style="width:auto">
+            <option value="ouverte">Ouvertes</option><option value="acquittee">Acquittées</option>
+            <option value="resolue">Résolues</option><option value="fausse_alerte">Fausses alertes</option>
+            <option value="">Toutes</option>
+        </select>
+    </div>
+    <div class="panel" style="margin-top:0">
+        <table>
+            <thead><tr><th>Date</th><th>Moteur</th><th>Niveau</th><th>Message</th><th>Envoi</th><th>Actions</th></tr></thead>
+            <tbody id="alertes-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API = window.location.origin + '/api/v1';
+    const LIBELLES = { critique: 'Critique', eleve: 'Élevé', surveillance: 'Surveillance', normal: 'Normal', indetermine: 'Indéterminé' };
+    let moteurs = [];
+
+    // --- Utilitaires -----------------------------------------------------------
+    function esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function niveauClasse(n) { return LIBELLES[n] ? n : 'indetermine'; }
+    function fmt(v, d = 1) { return v === null || v === undefined ? '—' : Number(v).toFixed(d); }
+    function dateFr(s) { return new Date(s).toLocaleString('fr-BE'); }
+
+    function token() { try { return sessionStorage.getItem('jwt'); } catch (e) { return null; } }
+    function setToken(t) { try { t ? sessionStorage.setItem('jwt', t) : sessionStorage.removeItem('jwt'); } catch (e) {} }
+
+    async function api(chemin, options = {}) {
+        const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+        const t = token();
+        if (t) headers['Authorization'] = 'Bearer ' + t;
+        const res = await fetch(API + chemin, { ...options, headers });
+        if (res.status === 401) { deconnexion(); throw new Error('Session expirée, reconnectez-vous'); }
+        const corps = res.status === 204 ? null : await res.json().catch(() => null);
+        if (!res.ok) {
+            const detail = corps && corps.detail ? (typeof corps.detail === 'string' ? corps.detail : JSON.stringify(corps.detail)) : res.statusText;
+            throw new Error(`${res.status} — ${detail}`);
+        }
+        return corps;
+    }
+
+    // --- Navigation ------------------------------------------------------------
+    function showPage(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+        document.getElementById('page-' + page).classList.add('active');
+        if (page === 'dashboard') chargerDashboard();
+        if (page === 'alertes') chargerAlertes();
+    }
+    document.querySelectorAll('.nav-btn[data-page]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
+
+    // --- Authentification ------------------------------------------------------
+    async function demarrer() {
+        if (!token()) { document.getElementById('nav-links').style.display = 'none'; showLogin(); return; }
+        try {
+            const moi = await api('/auth/me');
+            document.getElementById('nav-user').textContent = moi.email;
+            document.getElementById('nav-links').style.display = 'flex';
+            showPage('dashboard');
+        } catch (e) { showLogin(); }
+    }
+    function showLogin() {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-login').classList.add('active');
+    }
+    function deconnexion() { setToken(null); document.getElementById('nav-links').style.display = 'none'; showLogin(); }
+    document.getElementById('logout').addEventListener('click', deconnexion);
+
+    document.getElementById('login-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const erreur = document.getElementById('login-erreur');
+        erreur.textContent = '';
+        try {
+            const r = await api('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: document.getElementById('login-email').value,
+                    mot_de_passe: document.getElementById('login-mdp').value,
+                }),
+            });
+            setToken(r.access_token);
+            document.getElementById('login-mdp').value = '';
+            demarrer();
+        } catch (e) { erreur.textContent = 'Connexion refusée : ' + e.message; }
+    });
+
+    // --- Dashboard -------------------------------------------------------------
+    async function chargerDashboard() {
+        const grid = document.getElementById('moteurs-grid');
+        grid.innerHTML = '<div class="muted">Chargement...</div>';
+        document.getElementById('historique-panel').style.display = 'none';
+        try {
+            moteurs = await api('/moteurs');
+        } catch (e) { grid.innerHTML = `<div class="erreur">${esc(e.message)}</div>`; return; }
+        remplirSelectMoteurs();
+
+        const comptes = { critique: 0, eleve: 0, surveillance: 0, normal: 0, indetermine: 0 };
+        const cartes = await Promise.all(moteurs.map(async (m) => {
+            try {
+                const h = await api(`/moteurs/${m.id}/historique?limite=1`);
+                const derniere = h.mesures[0] || null;
+                const niveau = derniere && derniere.niveau_risque ? derniere.niveau_risque : 'indetermine';
+                return { m, derniere, niveau };
+            } catch (e) { return { m, derniere: null, niveau: 'indetermine' }; }
+        }));
+        cartes.forEach(c => comptes[niveauClasse(c.niveau)]++);
+
+        document.getElementById('stats').innerHTML = Object.keys(comptes).map(n => `
+            <div class="stat-card ${n}"><div class="stat-number">${comptes[n]}</div><div class="stat-label">${LIBELLES[n]}</div></div>
+        `).join('');
+
+        if (!cartes.length) {
+            grid.innerHTML = '<div class="muted">Aucun moteur. Un administrateur peut en créer via l\'API (/docs).</div>';
+            return;
+        }
+        grid.innerHTML = cartes.map(c => {
+            const n = niveauClasse(c.niveau);
+            const d = c.derniere ? c.derniere.mesure : null;
+            return `
+            <div class="moteur-card ${n}">
+                <div class="moteur-header">
+                    <div class="moteur-id">⚙️ ${esc(c.m.code)}</div>
+                    <span class="badge">${esc(LIBELLES[n].toUpperCase())}</span>
+                </div>
+                ${d ? `
+                <div class="moteur-stats">
+                    <div class="moteur-stat"><div class="moteur-stat-label">Vibration</div>${fmt(d.vibration_rms_mm_s, 2)} mm/s</div>
+                    <div class="moteur-stat"><div class="moteur-stat-label">T° roulements</div>${fmt(d.temperature_roulements_c)} °C</div>
+                    <div class="moteur-stat"><div class="moteur-stat-label">T° bobinage</div>${fmt(d.temperature_bobinage_c)} °C</div>
+                    <div class="moteur-stat"><div class="moteur-stat-label">Dernière</div><span style="font-size:10px">${esc(dateFr(d.mesure_le))}</span></div>
+                </div>` : '<div class="muted" style="margin-bottom:10px">Aucune mesure enregistrée</div>'}
+                <div class="card-actions">
+                    <button class="analyser-btn" data-historique="${c.m.id}">📋 Historique</button>
+                    <button class="analyser-btn" style="background:#0f3460" data-analyser="${c.m.id}">🔍 Analyser</button>
+                </div>
+            </div>`;
+        }).join('');
+        grid.querySelectorAll('[data-historique]').forEach(b => b.addEventListener('click', () => chargerHistorique(Number(b.dataset.historique))));
+        grid.querySelectorAll('[data-analyser]').forEach(b => b.addEventListener('click', () => {
+            document.getElementById('moteur').value = b.dataset.analyser;
+            showPage('diagnostic');
+        }));
+    }
+    document.getElementById('refresh').addEventListener('click', chargerDashboard);
+
+    async function chargerHistorique(moteurId) {
+        const m = moteurs.find(x => x.id === moteurId);
+        const panel = document.getElementById('historique-panel');
+        const tbody = document.getElementById('historique-tbody');
+        document.getElementById('historique-titre').textContent = `Historique — ${m ? m.code : moteurId}`;
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">Chargement...</td></tr>';
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth' });
+        try {
+            const h = await api(`/moteurs/${moteurId}/historique?limite=100`);
+            if (!h.mesures.length) { tbody.innerHTML = '<tr><td colspan="7" class="muted">Aucune mesure</td></tr>'; return; }
+            tbody.innerHTML = h.mesures.map(l => {
+                const d = l.mesure;
+                const n = l.niveau_risque ? niveauClasse(l.niveau_risque) : null;
+                return `<tr>
+                    <td>${esc(dateFr(d.mesure_le))}</td>
+                    <td>${fmt(d.vibration_rms_mm_s, 2)}</td>
+                    <td>${fmt(d.temperature_roulements_c)} °C</td>
+                    <td>${fmt(d.temperature_bobinage_c)} °C</td>
+                    <td>${fmt(d.desequilibre_tension_pct, 2)} %</td>
+                    <td>${fmt(d.desequilibre_courant_pct, 2)} %</td>
+                    <td>${n ? `<span class="${n}"><span class="dot"></span>${esc(LIBELLES[n])}</span>` : '<span class="muted">non analysée</span>'}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) { tbody.innerHTML = `<tr><td colspan="7" class="erreur">${esc(e.message)}</td></tr>`; }
+    }
+
+    // --- Diagnostic ------------------------------------------------------------
+    function remplirSelectMoteurs() {
+        const sel = document.getElementById('moteur');
+        const courant = sel.value;
+        sel.innerHTML = moteurs.map(m => `<option value="${m.id}">${esc(m.code)}${m.designation ? ' — ' + esc(m.designation) : ''}</option>`).join('');
+        if (courant) sel.value = courant;
+    }
+
+    document.getElementById('diag-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const btn = document.getElementById('btn');
+        const loading = document.getElementById('loading');
+        const resultat = document.getElementById('resultat');
+        btn.disabled = true; loading.style.display = 'block'; resultat.style.display = 'none';
+
+        const num = id => parseFloat(document.getElementById(id).value);
+        const observations = document.getElementById('observations').value.trim();
+        const corps = {
+            moteur_id: Number(document.getElementById('moteur').value),
+            tension_ph1_v: num('tension_ph1_v'), tension_ph2_v: num('tension_ph2_v'), tension_ph3_v: num('tension_ph3_v'),
+            courant_ph1_a: num('courant_ph1_a'), courant_ph2_a: num('courant_ph2_a'), courant_ph3_a: num('courant_ph3_a'),
+            vibration_rms_mm_s: num('vibration_rms_mm_s'),
+            temperature_roulements_c: num('temperature_roulements_c'),
+            temperature_bobinage_c: num('temperature_bobinage_c'),
+            observations: observations || null,
+        };
+        const badge = document.getElementById('badge');
+        const diag = document.getElementById('diagnostic');
+        try {
+            const r = await api('/analyser-moteur', { method: 'POST', body: JSON.stringify(corps) });
+            const n = niveauClasse(r.niveau_risque);
+            badge.textContent = LIBELLES[n].toUpperCase();
+            badge.className = 'resultat-badge ' + n;
+
+            document.getElementById('regles-tbody').innerHTML = r.regles.resultats.map(x => {
+                const nx = niveauClasse(x.niveau);
+                return `<tr>
+                    <td>${esc(x.libelle)}${x.note ? `<div class="muted">${esc(x.note)}</div>` : ''}</td>
+                    <td>${x.valeur === null ? '—' : esc(x.valeur)} ${esc(x.unite)}</td>
+                    <td><span class="${nx}"><span class="dot"></span>${esc(LIBELLES[nx])}</span></td>
+                    <td>${esc(x.seuil || '')}<div class="muted">${esc(x.source)} <span class="nature">${esc(x.nature)}</span></div></td>
+                </tr>`;
+            }).join('');
+
+            const a = r.alerte;
+            document.getElementById('alerte-box').innerHTML = a ? `
+                <div class="alerte-box ${niveauClasse(a.niveau)}">
+                    🚨 Alerte #${a.id} (${esc(a.declenchee_par)}) — envoi : <strong>${esc(a.envoi_statut)}</strong>
+                    ${a.envoi_erreur ? `<div class="erreur">${esc(a.envoi_erreur)}</div>` : ''}
+                </div>` : '';
+
+            const md = r.diagnostic || (r.erreur ? `*Diagnostic de l'agent indisponible : ${r.erreur}*` : '');
+            diag.innerHTML = DOMPurify.sanitize(marked.parse(md));
+            document.getElementById('info').textContent =
+                `Règles v${r.regles.version}` + (r.regles.non_evaluees.length ? ` — non évaluées : ${r.regles.non_evaluees.join(' ; ')}` : '');
+        } catch (e) {
+            badge.textContent = 'ERREUR'; badge.className = 'resultat-badge critique';
+            document.getElementById('regles-tbody').innerHTML = '';
+            document.getElementById('alerte-box').innerHTML = '';
+            diag.textContent = e.message;
+            document.getElementById('info').textContent = '';
+        }
+        resultat.style.display = 'block';
+        btn.disabled = false; loading.style.display = 'none';
+    });
+
+    // --- Alertes ---------------------------------------------------------------
+    async function chargerAlertes() {
+        const tbody = document.getElementById('alertes-tbody');
+        const statut = document.getElementById('filtre-statut').value;
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">Chargement...</td></tr>';
+        try {
+            if (!moteurs.length) moteurs = await api('/moteurs');
+            const alertes = await api('/alertes' + (statut ? `?statut=${encodeURIComponent(statut)}` : ''));
+            if (!alertes.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted">Aucune alerte</td></tr>'; return; }
+            tbody.innerHTML = alertes.map(a => {
+                const m = moteurs.find(x => x.id === a.moteur_id);
+                const n = niveauClasse(a.niveau);
+                const actions = [];
+                if (a.statut === 'ouverte') actions.push(['acquittee', 'Acquitter']);
+                if (a.statut === 'ouverte' || a.statut === 'acquittee') actions.push(['resolue', 'Résolue'], ['fausse_alerte', 'Fausse alerte']);
+                return `<tr>
+                    <td>${esc(dateFr(a.cree_le))}</td>
+                    <td>${esc(m ? m.code : a.moteur_id)}</td>
+                    <td><span class="${n}"><span class="dot"></span>${esc(LIBELLES[n])}</span><div class="muted">${esc(a.statut)}</div></td>
+                    <td style="max-width:320px">${esc(a.message)}</td>
+                    <td>${esc(a.envoi_statut)}${a.envoi_erreur ? `<div class="erreur" style="font-size:11px">${esc(a.envoi_erreur)}</div>` : ''}</td>
+                    <td>
+                        ${actions.map(([s, l]) => `<button class="btn-sec" data-alerte="${a.id}" data-statut="${s}" style="margin:2px">${l}</button>`).join('')}
+                        <button class="btn-sec" data-retour="${a.id}" style="margin:2px">Retour terrain</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            tbody.querySelectorAll('[data-statut]').forEach(b => b.addEventListener('click', async () => {
+                try {
+                    await api(`/alertes/${b.dataset.alerte}`, { method: 'PATCH', body: JSON.stringify({ statut: b.dataset.statut }) });
+                    chargerAlertes();
+                } catch (e) { alert(e.message); }
+            }));
+            tbody.querySelectorAll('[data-retour]').forEach(b => b.addEventListener('click', () => retourTerrain(b.dataset.retour)));
+        } catch (e) { tbody.innerHTML = `<tr><td colspan="6" class="erreur">${esc(e.message)}</td></tr>`; }
+    }
+    document.getElementById('filtre-statut').addEventListener('change', chargerAlertes);
+
+    async function retourTerrain(alerteId) {
+        const reponse = prompt('Défaut confirmé sur le terrain ? (oui / non / ?)', 'oui');
+        if (reponse === null) return;
+        const r = reponse.trim().toLowerCase();
+        const defaut_confirme = r.startsWith('o') ? true : r.startsWith('n') ? false : null;
+        const type_defaut = defaut_confirme ? (prompt('Type de défaut (ex. roulement, désalignement, balourd) :', '') || null) : null;
+        const commentaire = prompt('Commentaire (facultatif) :', '') || null;
+        try {
+            await api(`/alertes/${alerteId}/retours`, { method: 'POST', body: JSON.stringify({ defaut_confirme, type_defaut, commentaire }) });
+            alert('Retour enregistré. Merci : il servira à améliorer les modèles.');
+        } catch (e) { alert(e.message); }
+    }
+
+    demarrer();
+</script>
+</body>
+</html>

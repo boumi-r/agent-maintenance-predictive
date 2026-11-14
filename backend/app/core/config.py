@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000", "http://localhost:8000"]
     )
     rate_limit_analyse: str = "10/minute"
+    rate_limit_storage_uri: str = "memory://"
 
     # Email
     email_provider: Literal["sendgrid", "resend", "console"] = "console"
@@ -48,6 +49,13 @@ class Settings(BaseSettings):
     def _split_origins(cls, value: object) -> object:
         if isinstance(value, str):
             return [o.strip() for o in value.split(",") if o.strip()]
+        return value
+
+    @field_validator("cors_origins")
+    @classmethod
+    def _pas_de_joker(cls, value: list[str]) -> list[str]:
+        if "*" in value:
+            raise ValueError("CORS_ORIGINS ne doit pas contenir '*' : lister les domaines du frontend")
         return value
 
     @field_validator("database_url")

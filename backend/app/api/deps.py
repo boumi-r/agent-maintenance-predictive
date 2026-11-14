@@ -68,7 +68,6 @@ _NON_AUTHENTIFIE = HTTPException(
 
 
 def get_principal(
-    request: Request,
     session: SessionDep,
     settings: SettingsDep,
     cle: Annotated[str | None, Security(_api_key_header)] = None,
@@ -101,8 +100,6 @@ def get_principal(
         )
     if principal is None:
         raise _NON_AUTHENTIFIE
-    # Utilisé par le rate limiting (clé = organisation)
-    request.state.organisation_id = principal.organisation_id
     return principal
 
 

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import ClientLLMDep, EmailProviderDep, Principal, PrincipalDep, SessionDep, SettingsDep
+from app.core.rate_limit import limiter_analyse
 from app.models import Analyse, Mesure, Moteur
 from app.models.enums import SourceMesure
 from app.schemas.analyse import (
@@ -49,7 +50,7 @@ def enregistrer_mesure(donnees: MesureIn, principal: PrincipalDep, session: Sess
     return mesure
 
 
-@router.post("/analyser-moteur", response_model=ResultatAnalyseOut)
+@router.post("/analyser-moteur", response_model=ResultatAnalyseOut, dependencies=[Depends(limiter_analyse)])
 def analyser_moteur(
     donnees: MesureIn,
     principal: PrincipalDep,
