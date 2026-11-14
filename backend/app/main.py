@@ -2,16 +2,34 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.api import auth, cles_api, moteurs, sites
 from app.core.config import Settings, get_settings
+from app.core.logging import configurer_logging
+from app.db.session import creer_engine, creer_session_factory
+
+API_PREFIX = "/api/v1"
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, session_factory: sessionmaker[Session] | None = None
+) -> FastAPI:
     settings = settings or get_settings()
-    app = FastAPI(title="MaintenanceAI", version="0.1.0")
+    configurer_logging(settings.log_level)
 
-    @app.get("/health")
+    app = FastAPI(title="MaintenanceAI", version="0.1.0")
+    # Objets construits une fois au démarrage et en lecture seule ensuite : aucun état de requête ici.
+    app.state.settings = settings
+    app.state.session_factory = session_factory or creer_session_factory(creer_engine(settings.database_url))
+
+    api = APIRouter(prefix=API_PREFIX)
+    for module in (auth, sites, moteurs, cles_api):
+        api.include_router(module.router)
+    app.include_router(api)
+
+    @app.get("/health", tags=["health"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
