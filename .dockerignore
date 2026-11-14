@@ -1,0 +1,15 @@
+.git
+.env
+*.db
+**/__pycache__
+**/*.pyc
+.venv
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.coverage
+htmlcov
+ml/data
+mlruns
+legacy
+frontend/node_modules
