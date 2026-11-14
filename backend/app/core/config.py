@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Agent Claude
     anthropic_api_key: SecretStr = SecretStr("")
     anthropic_model: str = "claude-sonnet-5-5"
-    anthropic_max_tokens: int = Field(default=2048, ge=256)
+    anthropic_max_tokens: int = Field(default=8000, ge=1024)
     agent_max_iterations: int = Field(default=8, ge=1, le=20)
 
     # Authentification

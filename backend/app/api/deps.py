@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
+import anthropic
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -16,6 +17,7 @@ from app.core.security import decoder_jwt, hacher_cle_api
 from app.db.base import maintenant
 from app.models import CleApi, Utilisateur
 from app.models.enums import Role
+from app.services.email.base import EmailProvider
 
 
 def get_settings_app(request: Request) -> Settings:
@@ -28,7 +30,19 @@ def get_session(request: Request) -> Iterator[Session]:
         yield session
 
 
+def get_client_llm(request: Request) -> anthropic.Anthropic:
+    client: anthropic.Anthropic = request.app.state.client_llm
+    return client
+
+
+def get_email_provider(request: Request) -> EmailProvider:
+    provider: EmailProvider = request.app.state.email_provider
+    return provider
+
+
 SettingsDep = Annotated[Settings, Depends(get_settings_app)]
+ClientLLMDep = Annotated[anthropic.Anthropic, Depends(get_client_llm)]
+EmailProviderDep = Annotated[EmailProvider, Depends(get_email_provider)]
 SessionDep = Annotated[Session, Depends(get_session)]
 
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
