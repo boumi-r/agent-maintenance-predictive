@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-tests:
+    name: Lint, types et tests (SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - run: pytest --cov=app.services --cov=app.ml_inference --cov-report=term-missing --cov-fail-under=80
+
+  postgres:
+    name: Migrations et tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: maintenance
+          POSTGRES_PASSWORD: maintenance
+          POSTGRES_DB: maintenance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U maintenance"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://maintenance:maintenance@localhost:5432/maintenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - name: Migration initiale aller-retour + cohérence modèles
+        working-directory: backend
+        run: |
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
+          alembic upgrade head
+      - name: Suite de tests sur PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://maintenance:maintenance@localhost:5432/maintenance_test
+        run: |
+          PGPASSWORD=maintenance psql -h localhost -U maintenance -d maintenance -c "CREATE DATABASE maintenance_test"
+          pytest -q
+
+  docker:
+    name: Build de l'image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t maintenance-ai .

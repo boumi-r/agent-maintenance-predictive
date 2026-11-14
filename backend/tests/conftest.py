@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -39,14 +40,22 @@ def settings() -> Settings:
 
 @pytest.fixture
 def session_factory() -> Iterator[sessionmaker[Session]]:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    """SQLite en mémoire par défaut ; TEST_DATABASE_URL=postgresql+psycopg://... pour Postgres (CI)."""
+    url = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+    if url.startswith("sqlite"):
+        engine = create_engine(url, connect_args={"check_same_thread": False}, poolclass=StaticPool)
 
-    @event.listens_for(engine, "connect")
-    def _fk(dbapi_conn, _record):  # type: ignore[no-untyped-def]
-        dbapi_conn.execute("PRAGMA foreign_keys=ON")
+        @event.listens_for(engine, "connect")
+        def _fk(dbapi_conn, _record):  # type: ignore[no-untyped-def]
+            dbapi_conn.execute("PRAGMA foreign_keys=ON")
+    else:
+        engine = create_engine(url)
+        Base.metadata.drop_all(engine)
 
     Base.metadata.create_all(engine)
     yield sessionmaker(bind=engine, expire_on_commit=False)
+    if not url.startswith("sqlite"):
+        Base.metadata.drop_all(engine)
     engine.dispose()
 
 
